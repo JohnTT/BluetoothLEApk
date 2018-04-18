@@ -7,6 +7,16 @@
     tools:context=".MainActivity"
     tools:layout_editor_absoluteY="81dp">
 
+    <Button
+        android:id="@+id/btnSensorStop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="73dp"
+        android:text="Stop Sensor"
+        app:layout_constraintEnd_toEndOf="@+id/edtZ"
+        app:layout_constraintTop_toBottomOf="@+id/btnSend" />
+
     <EditText
         android:id="@+id/edtX"
         android:layout_width="0dp"
@@ -22,28 +32,28 @@
 
     <EditText
         android:id="@+id/edtZ"
-        android:layout_width="0dp"
+        android:layout_width="82dp"
         android:layout_height="wrap_content"
         android:layout_marginEnd="90dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:text="Z"
         app:layout_constraintBaseline_toBaselineOf="@+id/edtY"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@+id/edtY" />
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <EditText
         android:id="@+id/edtY"
-        android:layout_width="0dp"
+        android:layout_width="82dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="18dp"
+        android:layout_marginEnd="100dp"
+        android:layout_marginStart="96dp"
         android:layout_marginTop="22dp"
         android:ems="10"
         android:inputType="textPersonName"
         android:text="Y"
-        app:layout_constraintEnd_toStartOf="@+id/edtZ"
-        app:layout_constraintStart_toEndOf="@+id/edtX"
-        app:layout_constraintTop_toBottomOf="@+id/btnSensor" />
+        app:layout_constraintEnd_toEndOf="@+id/edtZ"
+        app:layout_constraintStart_toStartOf="@+id/btnSensorStart"
+        app:layout_constraintTop_toBottomOf="@+id/btnSensorStart" />
 
     <Button
         android:id="@+id/btnStart"
@@ -78,13 +88,12 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
-        android:id="@+id/btnSensor"
+        android:id="@+id/btnSensorStart"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="177dp"
         android:layout_marginStart="16dp"
         android:text="Start Sensor"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBaseline_toBaselineOf="@+id/btnSensorStop"
         app:layout_constraintStart_toStartOf="parent" />
 
 </android.support.constraint.ConstraintLayout>

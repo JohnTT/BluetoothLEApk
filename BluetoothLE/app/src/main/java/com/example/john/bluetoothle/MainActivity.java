@@ -9,6 +9,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Handler;
 import android.os.ParcelUuid;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -45,6 +46,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     private UUID serviceUUID, charUUID, descUUID;
 
+    private boolean clientIsReady = true;
+
+
 
     // Sensor API
     private SensorManager mSensorManager;
@@ -55,6 +59,75 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private final float[] mOrientationAngles = new float[3];
 
     public final double RAD_TO_DEGREE = (180.0/Math.PI);
+
+
+    // Handlers
+    long startTime = 0;
+    //runs without a timer by reposting this handler at the end of the runnable
+    Handler timerHandler = new Handler();
+    Runnable timerRunnable = new Runnable() {
+
+        @Override
+        public void run() {
+            long millis = System.currentTimeMillis() - startTime;
+            int seconds = (int) (millis / 1000);
+            int minutes = seconds / 60;
+            seconds = seconds % 60;
+
+            // Log Sensor Data
+            Log.v(TAG,"Acceleration X: " + mAccelerometerReading[0]);
+            Log.v(TAG,"Acceleration Y: " + mAccelerometerReading[1]);
+            Log.v(TAG,"Acceleration Z: " + mAccelerometerReading[2]);
+
+            Log.v(TAG,"Magnetic X: " + mMagnetometerReading[0]);
+            Log.v(TAG,"Magnetic Y: " + mMagnetometerReading[1]);
+            Log.v(TAG,"Magnetic Z: " + mMagnetometerReading[2]);
+
+            EditText edtX = (EditText)findViewById(R.id.edtX);
+            EditText edtY = (EditText)findViewById(R.id.edtY);
+            EditText edtZ = (EditText)findViewById(R.id.edtZ);
+
+            edtX.setText(mOrientationAngles[0]+"");
+            edtY.setText(mOrientationAngles[1]+"");
+            edtZ.setText(mOrientationAngles[2]+"");
+
+            Log.v(TAG,"Euler X: " + mOrientationAngles[0]);
+            Log.v(TAG,"Euler Y: " + mOrientationAngles[1]);
+            Log.v(TAG,"Euler Z: " + mOrientationAngles[2]);
+
+            if (client != null) {
+                // Stream Orientation over BLE
+                // eulerX
+
+                if (true) {
+                    characteristic.setValue("eulerX=" + (int)mOrientationAngles[0]);
+                    bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
+
+                    characteristic.setValue("eulerY=" + (int)mOrientationAngles[1]);
+                    bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
+
+                    characteristic.setValue("eulerZ=" + (int)mOrientationAngles[2]);
+                    bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
+
+                    Log.v(TAG, "Sent IMU Data: " + client.getName().toString());
+                }
+
+
+//
+//            // eulerY
+//            characteristic.setValue("eulerY=" + orientationAngles[1]);
+//            Log.d(TAG, "Notification sent to client: " + client.getName().toString());
+//            bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, true);
+//
+//            // eulerZ
+//            characteristic.setValue("eulerZ=" + orientationAngles[2]);
+//            Log.d(TAG, "Notification sent to client: " + client.getName().toString());
+//            bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, true);
+            }
+
+            timerHandler.postDelayed(this, 10);
+        }
+    };
 
 
     @Override
@@ -89,14 +162,15 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public void onClick(View v) {
                 EditText edtCmd = (EditText)findViewById(R.id.edtCmd);
-                characteristic.setValue(edtCmd.getText().toString());
+                characteristic.setValue("eulerX=" + (int)mOrientationAngles[0]);
                 Log.d(TAG,"Notification sent to client: " + client.getName().toString());
                 bluetoothGattServer.notifyCharacteristicChanged(client,characteristic,false);
+                clientIsReady = false;
             }
         });
 
-        Button btnSensor = findViewById(R.id.btnSensor);
-        btnSensor.setOnClickListener(new View.OnClickListener() {
+        Button btnSensorStart = findViewById(R.id.btnSensorStart);
+        btnSensorStart.setOnClickListener(new View.OnClickListener() {
 
             @Override
             public void onClick(View v) {
@@ -104,12 +178,25 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
                 mSensorManager.registerListener(MainActivity.this,
-                        mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
-                        SensorManager.SENSOR_DELAY_NORMAL);
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
                 mSensorManager.registerListener(MainActivity.this,
-                        mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
-                        SensorManager.SENSOR_DELAY_NORMAL);
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
 
+                startTime = System.currentTimeMillis();
+                timerHandler.postDelayed(timerRunnable, 0);
+
+            }
+        });
+
+        Button btnSensorStop = findViewById(R.id.btnSensorStop);
+        btnSensorStop.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                if (mSensorManager != null) {
+                    mSensorManager.unregisterListener(MainActivity.this);
+                }
+                timerHandler.removeCallbacks(timerRunnable);
             }
         });
 
@@ -132,7 +219,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 //        charUUID = UUID.randomUUID();
 //        descUUID = UUID.randomUUID();
         charUUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E"); // Adafruit TX
-        descUUID = UUID.fromString("000002902-0000-1000-8000-00805f9b34fb");
+        descUUID = UUID.fromString("000002902-0000-1000-8000-00805f9b34fb"); // CCCD for Notifications
 
         settings = new AdvertiseSettings.Builder()
                 .setConnectable(true)
@@ -189,6 +276,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             public void onServiceAdded(int status, BluetoothGattService service) {
                 super.onServiceAdded(status, service);
                 Log.d(TAG,"Service Added.");
+
             }
 
             @Override
@@ -230,6 +318,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             @Override
             public void onNotificationSent(BluetoothDevice device, int status) {
                 super.onNotificationSent(device, status);
+                clientIsReady = true;
                 Log.d(TAG,"Client notification sent.");
             }
 
@@ -258,7 +347,9 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         //add a read characteristic.
         characteristic = new BluetoothGattCharacteristic(charUUID,
-                BluetoothGattCharacteristic.PROPERTY_READ | BluetoothGattCharacteristic.PROPERTY_NOTIFY,
+                BluetoothGattCharacteristic.PROPERTY_READ |
+                        BluetoothGattCharacteristic.PROPERTY_NOTIFY |
+                        BluetoothGattCharacteristic.PROPERTY_INDICATE,
                 BluetoothGattCharacteristic.PERMISSION_READ);
         characteristic.setValue("");
 
@@ -275,7 +366,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     @Override
     public void onSensorChanged(SensorEvent event) {
-        Log.d(TAG,"Sensor changed.");
+        // Log.v(TAG,"Sensor changed.");
 
         if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             mAccelerometerReading[0] = event.values[0];
@@ -288,53 +379,16 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             mMagnetometerReading[2] = event.values[2];
         }
 
-        Log.d(TAG,"Acceleration X: " + mAccelerometerReading[0]);
-        Log.d(TAG,"Acceleration Y: " + mAccelerometerReading[1]);
-        Log.d(TAG,"Acceleration Z: " + mAccelerometerReading[2]);
-
-        Log.d(TAG,"Magnetic X: " + mMagnetometerReading[0]);
-        Log.d(TAG,"Magnetic Y: " + mMagnetometerReading[1]);
-        Log.d(TAG,"Magnetic Z: " + mMagnetometerReading[2]);
-
         // Rotation matrix based on current readings from accelerometer and magnetometer.
         mSensorManager.getRotationMatrix(mRotationMatrix, null,
                 mAccelerometerReading, mMagnetometerReading);
 
-        final float[] orientationAngles = new float[3];
-        mSensorManager.getOrientation(mRotationMatrix, orientationAngles);
+        mSensorManager.getOrientation(mRotationMatrix, mOrientationAngles);
 
         // Conversion to Degrees
-        orientationAngles[0] *= RAD_TO_DEGREE;
-        orientationAngles[1] *= RAD_TO_DEGREE;
-        orientationAngles[2] *= RAD_TO_DEGREE;
-
-
-        EditText edtX = (EditText)findViewById(R.id.edtX);
-        EditText edtY = (EditText)findViewById(R.id.edtY);
-        EditText edtZ = (EditText)findViewById(R.id.edtZ);
-
-        edtX.setText(orientationAngles[0]+"");
-        edtY.setText(orientationAngles[1]+"");
-        edtZ.setText(orientationAngles[2]+"");
-
-        if (client != null) {
-            // Stream Orientation over BLE
-            // eulerX
-            characteristic.setValue("eulerX=" + orientationAngles[0]);
-            Log.d(TAG, "Notification sent to client: " + client.getName().toString());
-            bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
-
-            // eulerY
-            characteristic.setValue("eulerY=" + orientationAngles[1]);
-            Log.d(TAG, "Notification sent to client: " + client.getName().toString());
-            bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
-
-            // eulerZ
-            characteristic.setValue("eulerZ=" + orientationAngles[2]);
-            Log.d(TAG, "Notification sent to client: " + client.getName().toString());
-            bluetoothGattServer.notifyCharacteristicChanged(client, characteristic, false);
-        }
-
+        mOrientationAngles[0] *= RAD_TO_DEGREE;
+        mOrientationAngles[1] *= RAD_TO_DEGREE;
+        mOrientationAngles[2] *= RAD_TO_DEGREE;
 
 
     }
